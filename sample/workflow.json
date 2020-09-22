@@ -1,0 +1,2754 @@
+{
+  "functions": [
+    {
+      "name": "{{function}}",
+      "module": "functions"
+    }
+  ],
+  "ins": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    63
+  ],
+  "outs": [
+    64,
+    65,
+    107,
+    109,
+    110,
+    112,
+    113
+  ],
+  "processes": [ {
+      "name": "alignment_to_reference",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "bwa-wrapper",
+          "args": [
+            "mem",
+            "-t",
+            "2",
+            "-M",
+            "Gmax_275_v2.0.fa",
+            "USB-001_1.fastq",
+            "USB-001_2.fastq"
+          ],
+          "stdout": "20180321-083514-USB-001_aligned_reads.sam"
+        }
+      },
+      "ins": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        13
+      ]
+    },
+    {
+      "name": "sort_sam",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "picard-wrapper",
+          "args": [
+            "SortSam.jar",
+            "CREATE_INDEX=TRUE",
+            "MAX_RECORDS_IN_RAM=5000000",
+            "TMP_DIR=.",
+            "I=20180321-083514-USB-001_aligned_reads.sam",
+            "O=20180321-083514-USB-001_sorted_reads.bam",
+            "SO=coordinate",
+            "VALIDATION_STRINGENCY=LENIENT"
+          ]
+        }
+      },
+      "ins": [
+        13,
+        10
+      ],
+      "outs": [
+        14,
+        15
+      ]
+    },
+    {
+      "name": "dedup",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "picard-wrapper",
+          "args": [
+            "MarkDuplicates.jar",
+            "CREATE_INDEX=TRUE",
+            "MAX_RECORDS_IN_RAM=5000000",
+            "TMP_DIR=.",
+            "I=20180321-083514-USB-001_sorted_reads.bam",
+            "O=20180321-083514-USB-001_deduped_reads.bam",
+            "METRICS_FILE=20180321-083514-USB-001_deduped.metrics",
+            "VALIDATION_STRINGENCY=LENIENT"
+          ]
+        }
+      },
+      "ins": [
+        10,
+        14,
+        15
+      ],
+      "outs": [
+        16,
+        17
+      ]
+    },
+    {
+      "name": "add_replace",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "picard-wrapper",
+          "args": [
+            "AddOrReplaceReadGroups.jar",
+            "MAX_RECORDS_IN_RAM=5000000",
+            "TMP_DIR=.",
+            "I=20180321-083514-USB-001_deduped_reads.bam",
+            "O=20180321-083514-USB-001_addrepl.bam",
+            "RGID=USB-001",
+            "LB=USB-001",
+            "PL=Illumina",
+            "SM=USB-001",
+            "CN=BGI",
+            "RGPU=USB-001",
+            "VALIDATION_STRINGENCY=LENIENT",
+            "SORT_ORDER=coordinate",
+            "CREATE_INDEX=TRUE"
+          ]
+        }
+      },
+      "ins": [
+        10,
+        16,
+        17
+      ],
+      "outs": [
+        18,
+        19
+      ]
+    },
+    {
+      "name": "realign_target_creator",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "RealignerTargetCreator",
+            "-nt",
+            "2",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_addrepl.bam",
+            "-o",
+            "20180321-083514-USB-001_intervals.list"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        18,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        19,
+        11,
+        12
+      ],
+      "outs": [
+        20
+      ]
+    },
+    {
+      "name": "indel_realign",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "IndelRealigner",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_addrepl.bam",
+            "-targetIntervals",
+            "20180321-083514-USB-001_intervals.list",
+            "-o",
+            "20180321-083514-USB-001_indel_realigned.bam"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        18,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        20,
+        10,
+        19,
+        11,
+        12
+      ],
+      "outs": [
+        21,
+        22
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr01",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr01.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        23,
+        24
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr02",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr02.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        25,
+        26
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr03",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr03.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        27,
+        28
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr04",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr04.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        29,
+        30
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr05",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr05.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        31,
+        32
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr06",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr06.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        33,
+        34
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr07",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr07.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        35,
+        36
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr08",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr08.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        37,
+        38
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr09",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr09.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        39,
+        40
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr10",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr10.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        41,
+        42
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr11",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr11.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        43,
+        44
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr12",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr12.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        45,
+        46
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr13",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr13.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        47,
+        48
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr14",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr14.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        49,
+        50
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr15",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr15.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        51,
+        52
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr16",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr16.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        53,
+        54
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr17",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr17.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        55,
+        56
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr18",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr18.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        57,
+        58
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr19",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr19.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        59,
+        60
+      ]
+    },
+    {
+      "name": "haplotype_caller",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "HaplotypeCaller",
+            "--emitRefConfidence",
+            "GVCF",
+            "--variant_index_type",
+            "LINEAR",
+            "--variant_index_parameter",
+            "128000",
+            "-L",
+            "Chr20",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-I",
+            "20180321-083514-USB-001_indel_realigned.bam",
+            "-o",
+            "20180321-083514-USB-001_Chr20.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        9,
+        22,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        61,
+        62
+      ]
+    },
+    {
+      "name": "merge_gcvf",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "CombineGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-mergeGVCF.vcf",
+            "--variant",
+            "haplotype-files.list"
+          ]
+        }
+      },
+      "ins": [
+        45,
+        4,
+        33,
+        6,
+        39,
+        9,
+        36,
+        53,
+        41,
+        52,
+        42,
+        11,
+        54,
+        44,
+        37,
+        58,
+        57,
+        48,
+        38,
+        46,
+        25,
+        51,
+        34,
+        50,
+        31,
+        24,
+        35,
+        43,
+        3,
+        59,
+        62,
+        5,
+        29,
+        28,
+        63,
+        10,
+        32,
+        30,
+        26,
+        12,
+        1,
+        47,
+        27,
+        40,
+        7,
+        55,
+        61,
+        23,
+        56,
+        60,
+        49
+      ],
+      "outs": [
+        64,
+        65
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr01.vcf",
+            "-L",
+            "Chr01",
+            "--variant",
+            "20180321-083514-USB-001_Chr01.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        23,
+        10,
+        11,
+        24,
+        12
+      ],
+      "outs": [
+        66,
+        67
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr02.vcf",
+            "-L",
+            "Chr02",
+            "--variant",
+            "20180321-083514-USB-001_Chr02.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        25,
+        10,
+        11,
+        26,
+        12
+      ],
+      "outs": [
+        68,
+        69
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr03.vcf",
+            "-L",
+            "Chr03",
+            "--variant",
+            "20180321-083514-USB-001_Chr03.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        27,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        28,
+        11,
+        12
+      ],
+      "outs": [
+        70,
+        71
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr04.vcf",
+            "-L",
+            "Chr04",
+            "--variant",
+            "20180321-083514-USB-001_Chr04.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        29,
+        3,
+        4,
+        5,
+        30,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        72,
+        73
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr05.vcf",
+            "-L",
+            "Chr05",
+            "--variant",
+            "20180321-083514-USB-001_Chr05.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        31,
+        10,
+        32,
+        11,
+        12
+      ],
+      "outs": [
+        74,
+        75
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr06.vcf",
+            "-L",
+            "Chr06",
+            "--variant",
+            "20180321-083514-USB-001_Chr06.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        33,
+        6,
+        7,
+        9,
+        34,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        76,
+        77
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr07.vcf",
+            "-L",
+            "Chr07",
+            "--variant",
+            "20180321-083514-USB-001_Chr07.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        35,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        36,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        78,
+        79
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr08.vcf",
+            "-L",
+            "Chr08",
+            "--variant",
+            "20180321-083514-USB-001_Chr08.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        37,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        38,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        80,
+        81
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr09.vcf",
+            "-L",
+            "Chr09",
+            "--variant",
+            "20180321-083514-USB-001_Chr09.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        40,
+        4,
+        5,
+        6,
+        7,
+        39,
+        9,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        82,
+        83
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr10.vcf",
+            "-L",
+            "Chr10",
+            "--variant",
+            "20180321-083514-USB-001_Chr10.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        41,
+        10,
+        42,
+        11,
+        12
+      ],
+      "outs": [
+        84,
+        85
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr11.vcf",
+            "-L",
+            "Chr11",
+            "--variant",
+            "20180321-083514-USB-001_Chr11.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        43,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        44,
+        12
+      ],
+      "outs": [
+        86,
+        87
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr12.vcf",
+            "-L",
+            "Chr12",
+            "--variant",
+            "20180321-083514-USB-001_Chr12.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        45,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        46,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        88,
+        89
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr13.vcf",
+            "-L",
+            "Chr13",
+            "--variant",
+            "20180321-083514-USB-001_Chr13.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        47,
+        48,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        90,
+        91
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr14.vcf",
+            "-L",
+            "Chr14",
+            "--variant",
+            "20180321-083514-USB-001_Chr14.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        49,
+        6,
+        7,
+        9,
+        50,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        92,
+        93
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr15.vcf",
+            "-L",
+            "Chr15",
+            "--variant",
+            "20180321-083514-USB-001_Chr15.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        51,
+        10,
+        52,
+        11,
+        12
+      ],
+      "outs": [
+        94,
+        95
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr16.vcf",
+            "-L",
+            "Chr16",
+            "--variant",
+            "20180321-083514-USB-001_Chr16.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        53,
+        10,
+        11,
+        54,
+        12
+      ],
+      "outs": [
+        96,
+        97
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr17.vcf",
+            "-L",
+            "Chr17",
+            "--variant",
+            "20180321-083514-USB-001_Chr17.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        55,
+        56,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        98,
+        99
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr18.vcf",
+            "-L",
+            "Chr18",
+            "--variant",
+            "20180321-083514-USB-001_Chr18.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        57,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        58,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        100,
+        101
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr19.vcf",
+            "-L",
+            "Chr19",
+            "--variant",
+            "20180321-083514-USB-001_Chr19.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        59,
+        4,
+        5,
+        6,
+        7,
+        9,
+        60,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        102,
+        103
+      ]
+    },
+    {
+      "name": "genotype_gvcfs",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "GenotypeGVCFs",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-GVCF_Chr20.vcf",
+            "-L",
+            "Chr20",
+            "--variant",
+            "20180321-083514-USB-001_Chr20.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        61,
+        6,
+        7,
+        9,
+        62,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        104,
+        105
+      ]
+    },
+    {
+      "name": "combine_variants",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "CombineVariants",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-o",
+            "20180321-083514-All.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr01.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr02.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr03.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr04.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr05.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr06.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr07.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr08.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr09.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr10.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr11.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr12.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr13.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr14.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr15.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr16.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr17.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr18.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr19.vcf",
+            "--variant",
+            "20180321-083514-GVCF_Chr20.vcf"
+          ]
+        }
+      },
+      "ins": [
+        105,
+        4,
+        6,
+        73,
+        68,
+        9,
+        81,
+        74,
+        70,
+        11,
+        69,
+        78,
+        103,
+        98,
+        95,
+        104,
+        94,
+        91,
+        100,
+        71,
+        10,
+        79,
+        90,
+        102,
+        92,
+        67,
+        3,
+        88,
+        84,
+        5,
+        96,
+        85,
+        76,
+        77,
+        82,
+        80,
+        83,
+        86,
+        12,
+        1,
+        66,
+        93,
+        7,
+        97,
+        99,
+        89,
+        101,
+        72,
+        87,
+        75
+      ],
+      "outs": [
+        106,
+        107
+      ]
+    },
+    {
+      "name": "select_variants_snp",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "SelectVariants",
+            "-nt",
+            "2",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-selectType",
+            "SNP",
+            "-V",
+            "20180321-083514-All.vcf",
+            "-o",
+            "20180321-083514-All.vcf_snp_only.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        106,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        108
+      ]
+    },
+    {
+      "name": "filtering_snp",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "VariantFiltration",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-V",
+            "20180321-083514-All.vcf_snp_only.vcf",
+            "--filterExpression",
+            "QD < 2.0 || FS > 60.0 || MQ < 40.0 || Haplotypescore > 20.0",
+            "--filterName",
+            "my_snp_filter",
+            "-o",
+            "20180321-083514-All_filtered_snp.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        108,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        109,
+        110
+      ]
+    },
+    {
+      "name": "select_variants_indel",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "SelectVariants",
+            "-nt",
+            "2",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-selectType",
+            "INDEL",
+            "-V",
+            "20180321-083514-All.vcf",
+            "-o",
+            "20180321-083514-All.vcf_indel_only.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        106,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        111
+      ]
+    },
+    {
+      "name": "filtering_indel",
+      "function": "{{function}}",
+      "type": "dataflow",
+      "firingLimit": 1,
+      "config": {
+        "executor": {
+          "executable": "gatk-wrapper",
+          "args": [
+            "-T",
+            "VariantFiltration",
+            "-R",
+            "Gmax_275_v2.0.fa",
+            "-V",
+            "20180321-083514-All.vcf_indel_only.vcf",
+            "--filterExpression",
+            "QD < 2.0 || FS > 200.0 || MQ < 40 || Haplotypescore > 20.0",
+            "--filterName",
+            "my_indel_filter",
+            "-o",
+            "20180321-083514-All_filtered_indel.vcf"
+          ]
+        }
+      },
+      "ins": [
+        1,
+        111,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12
+      ],
+      "outs": [
+        112,
+        113
+      ]
+    }
+  ],
+  "signals": [
+    {
+      "name": "software.tar.gz",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.fa.sa",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "USB-001_2.fastq",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.fa",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.fa.amb",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.fa.bwt",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.fa.ann",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.fa.pac",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "USB-001_1.fastq",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "chromosome.txt",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "software.tar.gz",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.dict",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "Gmax_275_v2.0.fa.fai",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "20180321-083514-USB-001_aligned_reads.sam"
+    },
+    {
+      "name": "20180321-083514-USB-001_sorted_reads.bai"
+    },
+    {
+      "name": "20180321-083514-USB-001_sorted_reads.bam"
+    },
+    {
+      "name": "20180321-083514-USB-001_deduped_reads.bam"
+    },
+    {
+      "name": "20180321-083514-USB-001_deduped_reads.bai"
+    },
+    {
+      "name": "20180321-083514-USB-001_addrepl.bam"
+    },
+    {
+      "name": "20180321-083514-USB-001_addrepl.bai"
+    },
+    {
+      "name": "20180321-083514-USB-001_intervals.list"
+    },
+    {
+      "name": "20180321-083514-USB-001_indel_realigned.bam"
+    },
+    {
+      "name": "20180321-083514-USB-001_indel_realigned.bai"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr01.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr01.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr02.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr02.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr03.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr03.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr04.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr04.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr05.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr05.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr06.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr06.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr07.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr07.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr08.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr08.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr09.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr09.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr10.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr10.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr11.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr11.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr12.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr12.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr13.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr13.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr14.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr14.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr15.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr15.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr16.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr16.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr17.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr17.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr18.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr18.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr19.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr19.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr20.vcf"
+    },
+    {
+      "name": "20180321-083514-USB-001_Chr20.vcf.idx"
+    },
+    {
+      "name": "haplotype-files.list",
+      "data": [
+        {}
+      ]
+    },
+    {
+      "name": "20180321-083514-mergeGVCF.vcf"
+    },
+    {
+      "name": "20180321-083514-mergeGVCF.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr01.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr01.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr02.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr02.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr03.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr03.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr04.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr04.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr05.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr05.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr06.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr06.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr07.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr07.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr08.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr08.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr09.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr09.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr10.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr10.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr11.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr11.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr12.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr12.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr13.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr13.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr14.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr14.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr15.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr15.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr16.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr16.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr17.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr17.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr18.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr18.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr19.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr19.vcf"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr20.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-GVCF_Chr20.vcf"
+    },
+    {
+      "name": "20180321-083514-All.vcf"
+    },
+    {
+      "name": "20180321-083514-All.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-All.vcf_snp_only.vcf"
+    },
+    {
+      "name": "20180321-083514-All_filtered_snp.vcf"
+    },
+    {
+      "name": "20180321-083514-All_filtered_snp.vcf.idx"
+    },
+    {
+      "name": "20180321-083514-All.vcf_indel_only.vcf"
+    },
+    {
+      "name": "20180321-083514-All_filtered_indel.vcf"
+    },
+    {
+      "name": "20180321-083514-All_filtered_indel.vcf.idx"
+    }
+  ]
+}
