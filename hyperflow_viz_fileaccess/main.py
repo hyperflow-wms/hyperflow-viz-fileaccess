@@ -13,33 +13,33 @@ LOGS_DIR = "logs-hf"
 
 
 def parse_log_file(log_file_path, block_size):
-    def read_file():
-        data_list = []
-        with jsonlines.open(log_file_path) as reader:
-            for obj in reader:
-                value = obj['value']
-                file_path = value.get('file_path', None)
-                if file_path is not None \
-                        and LOGS_DIR not in file_path \
-                        and obj['parameter'] == 'pread' or obj['parameter'] == 'read':
-                    if 'oflags' in value:
-                        del value['oflags']
-                    if 'size' in value:
-                        del value['size']
-                    del obj['command']
-                    del obj['workflowId']
-                    del obj['parameter']
-                    obj['jobIdNumber'] = int(obj['jobId'].split('-')[2])
-                    del obj['jobId']
-                    data_list.append(obj)
-        return data_list
+    data_list = []
+    with jsonlines.open(log_file_path) as reader:
+        for obj in reader:
+            value = obj['value']
+            file_path = value.get('file_path', None)
+            if file_path is not None \
+                    and LOGS_DIR not in file_path \
+                    and obj['parameter'] == 'pread' or obj['parameter'] == 'read':
+                if 'oflags' in value:
+                    del value['oflags']
+                del value['size']
+                offset = int(value['offset'])
+                value['offset'] = offset
 
-    data = pd.json_normalize(read_file())
-    data['value.offset'] = data['value.offset'].astype('int32')
-    data['value.real_size'] = data['value.real_size'].astype('int32')
-    data['value.block_start_no'] = data['value.offset'] // block_size
-    data['value.block_end_no'] = (data['value.offset'] + data['value.real_size']) // block_size
-    return data
+                real_size = int(value['real_size'])
+                value['real_size'] = real_size
+
+                value['block_start_no'] = offset // block_size
+                value['block_end_no'] = (offset + real_size) // block_size
+
+                del obj['command']
+                del obj['workflowId']
+                del obj['parameter']
+                obj['jobIdNumber'] = int(obj['jobId'].split('-')[2])
+                del obj['jobId']
+                data_list.append(obj)
+    return pd.json_normalize(data_list)
 
 
 def parse_job_id_process_mapping(workflow_def_path):
