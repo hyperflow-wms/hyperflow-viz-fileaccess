@@ -9,10 +9,7 @@ from datetime import datetime
 import re
 from matplotlib.colors import to_rgb
 
-DEFAULT_BLOCK_SIZE_BYTES = 4096
-
 LOGS_DIR = "logs-hf"
-
 
 def parse_log_file(log_file_path, block_size):
     def read_file():
@@ -195,9 +192,15 @@ def main():
                         default='prism',
                         help='Set color palette. See: https://matplotlib.org/3.1.1/tutorials/colors/colormaps.html '
                              'for reference.')
+    parser.add_argument('--blocksize', '-bs',
+                        dest='block_size',
+                        type=int,
+                        required=False,
+                        default=4096,
+                        help='File block size in bytes')
 
     args = parser.parse_args()
-    data = parse_log_file(args.logfile, DEFAULT_BLOCK_SIZE_BYTES)
+    data = parse_log_file(args.logfile, args.block_size)
     job_index_to_process = parse_job_id_process_mapping(args.workflow_def)
     job_num = data['jobIdNumber'].max()
     file_job_map = get_file_job_map(data, job_num)
