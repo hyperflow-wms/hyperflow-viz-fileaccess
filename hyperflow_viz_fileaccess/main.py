@@ -119,7 +119,7 @@ def generate_plot(file_path,
     file_data = file_job_map[file_path]
     min_block, max_block = get_min_max_blocks(file_data)
     series = np.full((jobs_num, max_block - min_block + 1, 3), 255)
-    color_palette = get_color_palette(job_index_to_process.values())
+    color_palette = get_color_palette(set(job_index_to_process.values()))
     for job_id, ranges in file_data.items():
         for r in ranges:
             job_name = job_index_to_process[job_id]
