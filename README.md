@@ -12,7 +12,7 @@ pip install .
 ## Usage
 Single-file mode:
 ```
-hyperflow-viz-fileaccess -wf sample/workflow.json -f /work_dir/Gmax_275_v2.0.dict -o output_file.png -d 200 sample/file_access.jsonl
+hyperflow-viz-fileaccess -wf sample/workflow.json -f /work_dir/Gmax_275_v2.0.fa -o output_file.png -d 200 sample/file_access.jsonl
 ```
 
 All-files mode:

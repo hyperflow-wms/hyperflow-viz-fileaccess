@@ -12,7 +12,7 @@ from matplotlib.colors import to_rgb
 LOGS_DIR = "logs-hf"
 
 
-def parse_log_file(log_file_path, block_size):
+def parse_log_file(log_file_path, block_size, single_file=False, file_filter=''):
     data_list = []
     with jsonlines.open(log_file_path) as reader:
         for obj in reader:
@@ -20,6 +20,7 @@ def parse_log_file(log_file_path, block_size):
             file_path = value.get('file_path', None)
             if file_path is not None \
                     and LOGS_DIR not in file_path \
+                    and (not single_file or file_filter == file_path) \
                     and obj['parameter'] == 'pread' or obj['parameter'] == 'read':
                 if 'oflags' in value:
                     del value['oflags']
@@ -101,8 +102,24 @@ def get_file_job_map(dataset, jobs_num):
     return file_job_map
 
 
-def generate_plot(file_path, file_job_map, job_index_to_process, x_scale, ax, palette_name='prism'):
+def get_time_prefix():
+    current_time = datetime.now()
+    return current_time.strftime("%Y%m%d%H%M%S")
+
+
+def get_default_output_file(file_path):
+    return re.sub(r'[^A-Za-z0-9]+', '', file_path) + "_" + get_time_prefix() + ".png"
+
+
+def generate_plot(file_path,
+                  file_job_map,
+                  job_index_to_process,
+                  x_scale,
+                  output_file,
+                  palette_name='prism',
+                  dpi=150):
     print("Generate file access visualization for file: {}".format(file_path))
+    ax = plt.gca()
     jobs_num = max(job_index_to_process.keys())
 
     def get_min_max_blocks(data):
@@ -147,16 +164,13 @@ def generate_plot(file_path, file_job_map, job_index_to_process, x_scale, ax, pa
     ax.set_xlim(1, max_block if max_block > 1 else 2)
     ax.set_xlabel('Block number', fontdict={'fontsize': 8})
     ax.set_ylabel('Job identifier', fontdict={'fontsize': 8})
-    ax.legend(handles=[legend_elem(item) for item in color_palette.items()], loc='lower left')
-
-
-def get_time_prefix():
-    current_time = datetime.now()
-    return current_time.strftime("%Y%m%d%H%M%S")
-
-
-def get_default_output_file(file_path):
-    return re.sub(r'[^A-Za-z0-9]+', '', file_path) + "_" + get_time_prefix() + ".png"
+    legend = ax.legend(handles=[legend_elem(item) for item in color_palette.items()],
+                       bbox_to_anchor=(1.05, 1),
+                       loc='upper left')
+    plt.savefig(output_file,
+                dpi=dpi,
+                bbox_extra_artists=[legend],
+                bbox_inches='tight')
 
 
 def main():
@@ -206,7 +220,8 @@ def main():
                         help='File block size in bytes')
 
     args = parser.parse_args()
-    data = parse_log_file(args.logfile, args.block_size)
+    data = parse_log_file(args.logfile, args.block_size) if args.plot_file is None \
+        else parse_log_file(args.logfile, args.block_size, single_file=True, file_filter=args.plot_file)
     job_index_to_process = parse_job_id_process_mapping(args.workflow_def)
     job_num = data['jobIdNumber'].max()
     file_job_map = get_file_job_map(data, job_num)
@@ -218,9 +233,9 @@ def main():
                       file_job_map,
                       job_index_to_process,
                       args.x_scale,
-                      plt.gca(),
-                      palette_name=args.cmap)
-        plt.savefig(output_file, dpi=args.dpi)
+                      output_file,
+                      palette_name=args.cmap,
+                      dpi=args.dpi)
     else:  # All-files mode
         print(file_job_map)
         for file_name in file_job_map.keys():
@@ -228,9 +243,9 @@ def main():
                           file_job_map,
                           job_index_to_process,
                           args.x_scale,
-                          plt.gca(),
-                          palette_name=args.cmap)
-            plt.savefig(get_default_output_file(file_name), dpi=args.dpi)
+                          get_default_output_file(file_name),
+                          palette_name=args.cmap,
+                          dpi=args.dpi)
 
 
 if __name__ == "__main__":
