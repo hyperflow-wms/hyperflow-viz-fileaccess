@@ -58,13 +58,6 @@ def parse_job_id_process_mapping(workflow_def_path):
     return job_index_to_process
 
 
-def records_by_job_id(dataset):
-    by_job_id = {}
-    for record in dataset:
-        by_job_id.setdefault(record['jobIdNumber'], []).append(record)
-    return by_job_id
-
-
 def records_by_file_job_id(dataset):
     file_reads = {}
     for idx, row in enumerate(dataset):
