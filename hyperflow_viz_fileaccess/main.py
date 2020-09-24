@@ -14,6 +14,7 @@ LOGS_DIR = "logs-hf"
 
 def parse_log_file(log_file_path, block_size, single_file=False, file_filter=''):
     data_list = []
+    max_job_id = 0
     with jsonlines.open(log_file_path) as reader:
         for obj in reader:
             value = obj['value']
@@ -37,10 +38,13 @@ def parse_log_file(log_file_path, block_size, single_file=False, file_filter='')
                 del obj['command']
                 del obj['workflowId']
                 del obj['parameter']
-                obj['jobIdNumber'] = int(obj['jobId'].split('-')[2])
+                job_id = int(obj['jobId'].split('-')[2])
+                if job_id > max_job_id:
+                    max_job_id = job_id
+                obj['jobIdNumber'] = job_id
                 del obj['jobId']
                 data_list.append(obj)
-    return pd.json_normalize(data_list)
+    return pd.json_normalize(data_list), max_job_id
 
 
 def parse_job_id_process_mapping(workflow_def_path):
@@ -95,6 +99,7 @@ def files_by_job_id(dataset, job_id):
 
 def get_file_job_map(dataset, jobs_num):
     files_by_job = {i: files_by_job_id(dataset, i) for i in range(1, jobs_num + 1)}
+
     file_job_map = {}
     for j_id, file_map in files_by_job.items():
         for filename, access_ranges in file_map.items():
@@ -114,13 +119,13 @@ def get_default_output_file(file_path):
 def generate_plot(file_path,
                   file_job_map,
                   job_index_to_process,
+                  jobs_num,
                   x_scale,
                   output_file,
                   palette_name='prism',
                   dpi=150):
     print("Generate file access visualization for file: {}".format(file_path))
     ax = plt.gca()
-    jobs_num = max(job_index_to_process.keys())
 
     def get_min_max_blocks(data):
         start_min = float('inf')
@@ -220,11 +225,10 @@ def main():
                         help='File block size in bytes')
 
     args = parser.parse_args()
-    data = parse_log_file(args.logfile, args.block_size) if args.plot_file is None \
+    data, jobs_num = parse_log_file(args.logfile, args.block_size) if args.plot_file is None \
         else parse_log_file(args.logfile, args.block_size, single_file=True, file_filter=args.plot_file)
     job_index_to_process = parse_job_id_process_mapping(args.workflow_def)
-    job_num = data['jobIdNumber'].max()
-    file_job_map = get_file_job_map(data, job_num)
+    file_job_map = get_file_job_map(data, jobs_num)
 
     plt.tight_layout()
     if args.plot_file is not None:  # Single-file mode
@@ -232,6 +236,7 @@ def main():
         generate_plot(args.plot_file,
                       file_job_map,
                       job_index_to_process,
+                      jobs_num,
                       args.x_scale,
                       output_file,
                       palette_name=args.cmap,
@@ -242,6 +247,7 @@ def main():
             generate_plot(file_name,
                           file_job_map,
                           job_index_to_process,
+                          jobs_num,
                           args.x_scale,
                           get_default_output_file(file_name),
                           palette_name=args.cmap,
