@@ -182,7 +182,7 @@ def main():
                         dest='cmap',
                         type=str,
                         required=False,
-                        default='prism',
+                        default='hsv',
                         help='Set color palette. See: https://matplotlib.org/3.1.1/tutorials/colors/colormaps.html '
                              'for reference.')
     parser.add_argument('--blocksize', '-bs',
