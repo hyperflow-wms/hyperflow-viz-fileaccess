@@ -1,5 +1,4 @@
 import jsonlines
-import pandas as pd
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,7 +43,7 @@ def parse_log_file(log_file_path, block_size, single_file=False, file_filter='')
                 obj['jobIdNumber'] = job_id
                 del obj['jobId']
                 data_list.append(obj)
-    return pd.json_normalize(data_list), max_job_id
+    return data_list, max_job_id
 
 
 def parse_job_id_process_mapping(workflow_def_path):
@@ -71,35 +70,42 @@ def reduce_records(t1, t2):
     return [t1, t2]
 
 
-def files_by_job_id(dataset, job_id):
-    filtered = dataset[dataset['jobIdNumber'] == job_id]
+def records_by_job_id(dataset):
+    by_job_id = {}
+    for record in dataset:
+        by_job_id.setdefault(record['jobIdNumber'], []).append(record)
+    return by_job_id
+
+
+def files_by_job_id(dataset):
     file_reads = {}
-    for idx, row in filtered.iterrows():
-        file_reads.setdefault(row['value.file_path'], []).append(
-            (row['value.block_start_no'], row['value.block_end_no']))
+    for idx, row in enumerate(dataset):
+        file_reads\
+            .setdefault(row['jobIdNumber'], {})\
+            .setdefault(row['value']['file_path'], [])\
+            .append((row['value']['block_start_no'], row['value']['block_end_no']))
 
     processed_dict = {}
-    for key, value in file_reads.items():
-        value_sorted = sorted(value, key=lambda tup: tup[0])
-        value_reduced = [value_sorted[0]]
-        reduced_idx = 0
-        for elem in value_sorted[1:]:
-            reduced = reduce_records(value_reduced[reduced_idx], elem)
-            reduced_len = len(reduced)
-            if reduced_len == 2:
-                value_reduced[reduced_idx] = reduced[0]
-                value_reduced.append(reduced[1])
-                reduced_idx = reduced_idx + 1
-            elif reduced_len == 1:
-                value_reduced[reduced_idx] = reduced[0]
-        processed_dict[key] = value_reduced
-
+    for job_id, reads in file_reads.items():
+        for key, value in reads.items():
+            value_sorted = sorted(value, key=lambda tup: tup[0])
+            value_reduced = [value_sorted[0]]
+            reduced_idx = 0
+            for elem in value_sorted[1:]:
+                reduced = reduce_records(value_reduced[reduced_idx], elem)
+                reduced_len = len(reduced)
+                if reduced_len == 2:
+                    value_reduced[reduced_idx] = reduced[0]
+                    value_reduced.append(reduced[1])
+                    reduced_idx = reduced_idx + 1
+                elif reduced_len == 1:
+                    value_reduced[reduced_idx] = reduced[0]
+            processed_dict.setdefault(job_id, {})[key] = value_reduced
     return processed_dict
 
 
-def get_file_job_map(dataset, jobs_num):
-    files_by_job = {i: files_by_job_id(dataset, i) for i in range(1, jobs_num + 1)}
-
+def get_file_job_map(dataset):
+    files_by_job = files_by_job_id(dataset)
     file_job_map = {}
     for j_id, file_map in files_by_job.items():
         for filename, access_ranges in file_map.items():
@@ -228,7 +234,7 @@ def main():
     data, jobs_num = parse_log_file(args.logfile, args.block_size) if args.plot_file is None \
         else parse_log_file(args.logfile, args.block_size, single_file=True, file_filter=args.plot_file)
     job_index_to_process = parse_job_id_process_mapping(args.workflow_def)
-    file_job_map = get_file_job_map(data, jobs_num)
+    file_job_map = get_file_job_map(data)
 
     plt.tight_layout()
     if args.plot_file is not None:  # Single-file mode
