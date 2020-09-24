@@ -11,24 +11,30 @@ from matplotlib.colors import to_rgb
 
 LOGS_DIR = "logs-hf"
 
+
 def parse_log_file(log_file_path, block_size):
     def read_file():
         data_list = []
         with jsonlines.open(log_file_path) as reader:
             for obj in reader:
-                data_list.append(obj)
+                value = obj['value']
+                file_path = value.get('file_path', None)
+                if file_path is not None \
+                        and LOGS_DIR not in file_path \
+                        and obj['parameter'] == 'pread' or obj['parameter'] == 'read':
+                    if 'oflags' in value:
+                        del value['oflags']
+                    if 'size' in value:
+                        del value['size']
+                    del obj['command']
+                    del obj['workflowId']
+                    del obj['parameter']
+                    obj['jobIdNumber'] = int(obj['jobId'].split('-')[2])
+                    del obj['jobId']
+                    data_list.append(obj)
         return data_list
 
     data = pd.json_normalize(read_file())
-    data = data.drop('value.oflags', axis=1)
-    data = data.drop('value.size', axis=1)
-    data = data.drop('command', axis=1)
-    data = data.drop('workflowId', axis=1)
-    data['jobIdNumber'] = data['jobId'].apply(lambda jobId: int(jobId.split('-')[2]))
-    data = data.drop('jobId', axis=1)
-    data = data[~data['value.file_path'].str.contains(LOGS_DIR)]
-    data = data[(data['parameter'] == 'read') | (data['parameter'] == 'pread')]
-    data = data.drop('parameter', axis=1)
     data['value.offset'] = data['value.offset'].astype('int32')
     data['value.real_size'] = data['value.real_size'].astype('int32')
     data['value.block_start_no'] = data['value.offset'] // block_size
@@ -134,7 +140,7 @@ def generate_plot(file_path, file_job_map, job_index_to_process, x_scale, ax, pa
               aspect='auto',
               interpolation='nearest',
               origin='lower')
-    ax.set_title('File block access for: {}'.format(file_path),  fontdict={'fontsize': 8})
+    ax.set_title('File block access for: {}'.format(file_path), fontdict={'fontsize': 8})
     ax.grid(linewidth=0)
     if x_scale == 'log':
         ax.set_xscale("log", base=2)
