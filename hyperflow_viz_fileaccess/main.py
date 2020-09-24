@@ -7,26 +7,11 @@ import argparse
 from matplotlib.lines import Line2D
 from datetime import datetime
 import re
+from matplotlib.colors import to_rgb
 
-# File block size (in bytes)
-BLOCK_SIZE = 4096
+DEFAULT_BLOCK_SIZE_BYTES = 4096
 
 LOGS_DIR = "logs-hf"
-
-WORKFLOW_DEF = "sample/workflow.json"
-
-color_palette = {
-    'genotype_gvcfs': (90, 88, 149),
-    'merge_gcvf': (139, 161, 188),
-    'haplotype_caller': (53, 131, 89),
-    'indel_realign': (0, 126, 127),
-    'realign_target_creator': (138, 184, 207),
-    'combine_variants': (112, 140, 152),
-    'select_variants_snp': (149, 130, 141),
-    'filtering_snp': (117, 180, 30),
-    'select_variants_indel': (240, 136, 146),
-    'filtering_indel': (1, 106, 64)
-}
 
 
 def parse_log_file(log_file_path, block_size):
@@ -113,32 +98,40 @@ def get_file_job_map(dataset, jobs_num):
     return file_job_map
 
 
-def generate_plot(file_path, file_job_map, job_index_to_process, ax):
+def generate_plot(file_path, file_job_map, job_index_to_process, x_scale, ax, palette_name='prism'):
     print("Generate file access visualization for file: {}".format(file_path))
     jobs_num = max(job_index_to_process.keys())
 
     def get_min_max_blocks(data):
-        all_starting = []
-        all_ending = []
-        for j_id, access_ranges in data.items():
-            for r in access_ranges:
-                all_starting.append(r[0])
-                all_ending.append(r[1])
-        return min(all_starting), max(all_ending)
+        start_min = float('inf')
+        end_max = 0
+        for access_ranges in data.values():
+            for rec in access_ranges:
+                if rec[0] < start_min:
+                    start_min = rec[0]
+                if rec[1] > end_max:
+                    end_max = rec[1]
+        return start_min, end_max
 
     def legend_elem(color_item):
-        return Line2D([0], [0], lw=6, color=tuple(map(lambda x: x / 255, color_item[1])), label=color_item[0])
+        return Line2D([0], [0], lw=6, color=color_item[1], label=color_item[0])
+
+    def get_color_palette(process_names):
+        colors = plt.cm.get_cmap(palette_name, len(process_names))
+        palette = {}
+        for i, process_name in enumerate(process_names):
+            palette[process_name] = colors(i)
+        return palette
 
     file_data = file_job_map[file_path]
     min_block, max_block = get_min_max_blocks(file_data)
     series = np.full((jobs_num, max_block - min_block + 1, 3), 255)
-    colors_palette_used = {}
+    color_palette = get_color_palette(job_index_to_process.values())
     for job_id, ranges in file_data.items():
         for r in ranges:
             job_name = job_index_to_process[job_id]
             color = color_palette[job_name]
-            colors_palette_used[job_name] = color
-            series[job_id - 1][r[0] - min_block: r[1] - min_block + 1] = color
+            series[job_id - 1][r[0] - min_block: r[1] - min_block + 1] = tuple(map(lambda c: c * 255, to_rgb(color)))
 
     ax.imshow(series,
               aspect='auto',
@@ -146,11 +139,12 @@ def generate_plot(file_path, file_job_map, job_index_to_process, ax):
               origin='lower')
     ax.set_title('File block access for: {}'.format(file_path),  fontdict={'fontsize': 8})
     ax.grid(linewidth=0)
-    ax.set_xscale("log", base=2)
+    if x_scale == 'log':
+        ax.set_xscale("log", base=2)
     ax.set_xlim(1, max_block if max_block > 1 else 2)
     ax.set_xlabel('Block number', fontdict={'fontsize': 8})
     ax.set_ylabel('Job identifier', fontdict={'fontsize': 8})
-    ax.legend(handles=[legend_elem(item) for item in colors_palette_used.items()], loc='lower left')
+    ax.legend(handles=[legend_elem(item) for item in color_palette.items()], loc='lower left')
 
 
 def get_time_prefix():
@@ -187,9 +181,23 @@ def main():
                         required=False,
                         default=150,
                         help='Resolution of the generated plot (DPI)')
+    parser.add_argument('--xscale', '-xs',
+                        dest='x_scale',
+                        type=str,
+                        required=False,
+                        default='linear',
+                        choices=['linear', 'log'],
+                        help='Set scale of x axis.')
+    parser.add_argument('--cmap', '-cm',
+                        dest='cmap',
+                        type=str,
+                        required=False,
+                        default='prism',
+                        help='Set color palette. See: https://matplotlib.org/3.1.1/tutorials/colors/colormaps.html '
+                             'for reference.')
 
     args = parser.parse_args()
-    data = parse_log_file(args.logfile, BLOCK_SIZE)
+    data = parse_log_file(args.logfile, DEFAULT_BLOCK_SIZE_BYTES)
     job_index_to_process = parse_job_id_process_mapping(args.workflow_def)
     job_num = data['jobIdNumber'].max()
     file_job_map = get_file_job_map(data, job_num)
@@ -197,12 +205,22 @@ def main():
     plt.tight_layout()
     if args.plot_file is not None:  # Single-file mode
         output_file = args.output_file if args.output_file is not None else get_default_output_file(args.plot_file)
-        generate_plot(args.plot_file, file_job_map, job_index_to_process, plt.gca())
+        generate_plot(args.plot_file,
+                      file_job_map,
+                      job_index_to_process,
+                      args.x_scale,
+                      plt.gca(),
+                      palette_name=args.cmap)
         plt.savefig(output_file, dpi=args.dpi)
     else:  # All-files mode
         print(file_job_map)
         for file_name in file_job_map.keys():
-            generate_plot(file_name, file_job_map, job_index_to_process, plt.gca())
+            generate_plot(file_name,
+                          file_job_map,
+                          job_index_to_process,
+                          args.x_scale,
+                          plt.gca(),
+                          palette_name=args.cmap)
             plt.savefig(get_default_output_file(file_name), dpi=args.dpi)
 
 
