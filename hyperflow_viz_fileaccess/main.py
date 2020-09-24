@@ -58,18 +58,6 @@ def parse_job_id_process_mapping(workflow_def_path):
     return job_index_to_process
 
 
-def reduce_records(t1, t2):
-    t1_start, t1_end = t1
-    t2_start, t2_end = t2
-    if t1_start == t2_start:
-        return [(t1_start, max(t1_end, t2_end))]
-
-    if t1_end >= t2_start:
-        return [(t1_start, t2_end)]
-
-    return [t1, t2]
-
-
 def records_by_job_id(dataset):
     by_job_id = {}
     for record in dataset:
@@ -77,40 +65,14 @@ def records_by_job_id(dataset):
     return by_job_id
 
 
-def files_by_job_id(dataset):
+def records_by_file_job_id(dataset):
     file_reads = {}
     for idx, row in enumerate(dataset):
         file_reads\
-            .setdefault(row['jobIdNumber'], {})\
-            .setdefault(row['value']['file_path'], [])\
+            .setdefault(row['value']['file_path'], {}) \
+            .setdefault(row['jobIdNumber'], []) \
             .append((row['value']['block_start_no'], row['value']['block_end_no']))
-
-    processed_dict = {}
-    for job_id, reads in file_reads.items():
-        for key, value in reads.items():
-            value_sorted = sorted(value, key=lambda tup: tup[0])
-            value_reduced = [value_sorted[0]]
-            reduced_idx = 0
-            for elem in value_sorted[1:]:
-                reduced = reduce_records(value_reduced[reduced_idx], elem)
-                reduced_len = len(reduced)
-                if reduced_len == 2:
-                    value_reduced[reduced_idx] = reduced[0]
-                    value_reduced.append(reduced[1])
-                    reduced_idx = reduced_idx + 1
-                elif reduced_len == 1:
-                    value_reduced[reduced_idx] = reduced[0]
-            processed_dict.setdefault(job_id, {})[key] = value_reduced
-    return processed_dict
-
-
-def get_file_job_map(dataset):
-    files_by_job = files_by_job_id(dataset)
-    file_job_map = {}
-    for j_id, file_map in files_by_job.items():
-        for filename, access_ranges in file_map.items():
-            file_job_map.setdefault(filename, {}).setdefault(j_id, []).extend(access_ranges)
-    return file_job_map
+    return file_reads
 
 
 def get_time_prefix():
@@ -234,7 +196,7 @@ def main():
     data, jobs_num = parse_log_file(args.logfile, args.block_size) if args.plot_file is None \
         else parse_log_file(args.logfile, args.block_size, single_file=True, file_filter=args.plot_file)
     job_index_to_process = parse_job_id_process_mapping(args.workflow_def)
-    file_job_map = get_file_job_map(data)
+    file_job_map = records_by_file_job_id(data)
 
     plt.tight_layout()
     if args.plot_file is not None:  # Single-file mode
