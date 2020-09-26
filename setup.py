@@ -20,7 +20,7 @@ setup(
     python_requires='>=3',
     entry_points={
         'console_scripts': [
-            'hyperflow-viz-fileaccess=hyperflow_viz_fileaccess.main:main'
+            'hflow-viz-fileaccess=hyperflow_viz_fileaccess.main:main'
         ],
     }
 )
